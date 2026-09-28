@@ -615,7 +615,7 @@ async fn run(opts: WrapOpts) -> anyhow::Result<ExitStatus> {
                 // current model size (the last view size, or the initial
                 // size before any view).
                 let (greet_rows, greet_cols) = if headless {
-                    mirror.host_size()
+                    mirror.view().map_or(mirror.host_size(), |v| (v.rows, v.cols))
                 } else {
                     host_size()
                 };

@@ -963,13 +963,16 @@ async fn headless_host_role_claim_force_and_resize() {
     assert_eq!(snapshot["width"], 90);
     assert_eq!(snapshot["height"], 28);
 
-    // C disconnects: the session is detached again.
+    // C disconnects: the session is detached again, and keeps (and
+    // reports) the size it was last viewed at.
     drop(c_reader);
     drop(c_write);
     let changed = read_until_type(&mut mon_reader, "host_changed").await;
     assert_eq!(changed["attached"], false);
     let (_r, _w, greeting) = connect_session(&socket).await;
     assert_eq!(greeting["detached"], true);
+    assert_eq!(greeting["host_width"], 90);
+    assert_eq!(greeting["host_height"], 28);
 }
 
 #[tokio::test]
