@@ -931,11 +931,15 @@ impl Attached {
         if self.watching {
             // Any key or click takes the session back; the detach key still
             // detaches, leaving the session to whoever holds it.
+            // Focus reports (the app may have turned them on) aren't a
+            // request for control: tabs gaining or losing focus as the user
+            // moves around must not pull the session back and forth.
+            let bytes = strip_focus_reports(bytes);
             if self.detach_key.is_some_and(|k| bytes.contains(&k)) {
                 self.detached = true;
                 let _ = self.conn.send(&ToSession::Unview).await;
-            } else {
-                self.reclaim = Some(strip_mouse_reports(bytes));
+            } else if !bytes.is_empty() {
+                self.reclaim = Some(strip_mouse_reports(&bytes));
             }
             return Ok(());
         }
@@ -990,6 +994,21 @@ fn strip_mouse_reports(bytes: &[u8]) -> Vec<u8> {
         }
         if rest.starts_with(b"\x1b[M") && rest.len() >= 6 {
             i += 6;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Drop focus-in/out reports (`ESC [ I`, `ESC [ O`) from input.
+fn strip_focus_reports(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if matches!(bytes[i..], [0x1b, b'[', b'I' | b'O', ..]) {
+            i += 3;
             continue;
         }
         out.push(bytes[i]);
@@ -1086,6 +1105,13 @@ mod tests {
         let opts = parse_attach_args(&args).unwrap();
         assert!(opts.watch);
         assert_eq!(opts.pattern.as_deref(), Some("4321"));
+    }
+
+    #[test]
+    fn focus_reports_are_stripped_but_keys_kept() {
+        assert_eq!(strip_focus_reports(b"\x1b[I"), b"");
+        assert_eq!(strip_focus_reports(b"\x1b[Ohi\x1b[I"), b"hi");
+        assert_eq!(strip_focus_reports(b"\x1b[A\x1bO"), b"\x1b[A\x1bO");
     }
 
     #[test]
