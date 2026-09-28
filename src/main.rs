@@ -336,8 +336,12 @@ fn spawn_detached(opts: &WrapOpts) -> anyhow::Result<()> {
     // getcwd is symlink-free, so this matches the socket name the child
     // computes for itself.
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/"));
-    let socket = g2mirror::paths::socket_name(child.id(), &cwd);
-    let socket_path = g2mirror::paths::g2mirror_dir()?.join(&socket);
+    let socket_path =
+        g2mirror::paths::socket_path(&g2mirror::paths::g2mirror_dir()?, child.id(), &cwd);
+    let socket = socket_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     // Only report success once the session socket exists; a launch that
     // prints a socket name nothing will ever answer on helps nobody.
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
