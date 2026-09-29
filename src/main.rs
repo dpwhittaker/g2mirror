@@ -848,10 +848,14 @@ async fn refresh_view(
     pty_write: &pty_process::OwnedWritePty,
     stdout: &mut HostTerm,
 ) -> anyhow::Result<()> {
+    // Ties go to the host-role client, then to the earlier connection. An
+    // attach client that reconnects (a reloaded browser tab) connects after
+    // the ones already watching, which rank as low as the host by default;
+    // the earlier-connection rule alone would let a watcher size the app.
     let best = viewers
         .iter()
         .filter(|c| !c.dead && c.state == ClientState::Viewing)
-        .min_by_key(|c| (effective_rank(c, host_rank), c.id));
+        .min_by_key(|c| (effective_rank(c, host_rank), c.role != Role::Host, c.id));
     let target = best.map(|c| {
         if headless || effective_rank(c, host_rank) <= host_rank {
             (c.height, c.width)

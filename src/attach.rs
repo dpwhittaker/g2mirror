@@ -536,8 +536,8 @@ async fn run_phase(
             carry,
         } => (Role::Host, force, None, fetch_history, carry),
         // The worst rank there is: every other viewer outranks a watcher,
-        // and so does the host (a better rank, or the earlier connection on
-        // a tie), so watching never resizes the app.
+        // and so does the host (a better rank, or the host role on a tie),
+        // so watching never resizes the app.
         Phase::Watch => (Role::Viewer, false, Some(u32::MAX), false, Vec::new()),
     };
     conn.send(&ToSession::Init {
